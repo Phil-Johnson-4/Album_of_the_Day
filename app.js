@@ -63,7 +63,7 @@
 
   async function initApp() {
     const config = window.ALBUM_CONFIG = {
-      DATA_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRcVNRWuJisxul-E45mMkhvKge1glac4Lhzyjskj4zDM-g87R00x88ru_ksXNQEgU9ZJFXGRT9PGMN8/pub?gid=0&single=true&output=csv'
+      DATA_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRcVNRWuJisxul-E45mMkhvKge1glac4Lhzyjskj4zDM-g87R00x88ru_ksXNQEgU9ZJFXGRT9PGMN8/pubhtml'
       APP_TITLE: 'ALBUM OF THE DAY'
     }; 
     //const config = window.ALBUM_CONFIG = {};
