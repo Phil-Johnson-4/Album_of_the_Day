@@ -1,48 +1,58 @@
 /**
  * Album of the Day - Main Application Logic
- * Fetches album data from external URL (3-column CSV/TSV)
- * Column 1: Album Name | Column 2: Artist Name | Column 3: Album Image URL
+ * Clean, self-contained single-script application
  */
+
+// =============================================================================
+// CONFIGURATION: Set your Google Sheet or CSV URL here
+// =============================================================================
+const DEFAULT_CONFIG = {
+  // Google Sheets Published CSV URL:
+  DATA_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRcVNRWuJisxul-E45mMkhvKge1glac4Lhzyjskj4zDM-g87R00x88ru_ksXNQEgU9ZJFXGRT9PGMN8/pub?output=csv',
+
+  // Site Header Title (purely cosmetic - does not affect data loading)
+  APP_TITLE: 'ALBUM OF THE DAY'
+};
 
 (function () {
   'use strict';
 
-  // Fallback sample data in case external fetch fails or CORS intervenes
+  // Fallback high-resolution sample albums if network fails or spreadsheet is unreachable
   const FALLBACK_ALBUMS = [
     {
       albumName: 'Cyber Horizons',
       artistName: 'Neon Nights',
-      imageUrl: 'assets/synthwave.jpg'
+      imageUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'Cosmic Harmonies',
       artistName: 'The Stellar Quintet',
-      imageUrl: 'assets/cosmic_jazz.jpg'
+      imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'Mist & Echo',
       artistName: 'Forest Voices',
-      imageUrl: 'assets/indie_folk.jpg'
+      imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'Random Access Memories',
       artistName: 'Daft Punk',
-      imageUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&w=800&q=80'
+      imageUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'Midnight City',
       artistName: 'M83',
-      imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80'
+      imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'Abbey Road',
       artistName: 'The Beatles',
-      imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80'
+      imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=800&q=80'
     },
     {
       albumName: 'The Dark Side of the Moon',
       artistName: 'Pink Floyd',
-      imageUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80'
+      imageUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=800&q=80'
     }
   ];
 
@@ -54,22 +64,14 @@
     { name: 'Friday', index: 5 }
   ];
 
-  /**
-   * Main Initialization
-   */
   document.addEventListener('DOMContentLoaded', () => {
     initApp();
   });
 
   async function initApp() {
-    const config = window.ALBUM_CONFIG = {
-      DATA_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRcVNRWuJisxul-E45mMkhvKge1glac4Lhzyjskj4zDM-g87R00x88ru_ksXNQEgU9ZJFXGRT9PGMN8/pubhtml'
-      APP_TITLE: 'ALBUM OF THE DAY'
-    }; 
-    //const config = window.ALBUM_CONFIG = {};
-    //const dataUrl = config.DATA_URL || 'sample_albums.csv';
-    //IS THIS THE LOCATION THAT I NEED TO UPDATE MY ALBUM URL ADDRESS?
-    //You can obviously see what I've changed in the rows above...
+    // Merge external window.ALBUM_CONFIG (if present) with DEFAULT_CONFIG
+    const config = Object.assign({}, DEFAULT_CONFIG, window.ALBUM_CONFIG || {});
+    const dataUrl = config.DATA_URL;
 
     if (config.APP_TITLE) {
       const titleElem = document.getElementById('appTitle');
@@ -81,16 +83,17 @@
       if (albums && albums.length > 0) {
         renderShowcase(albums);
       } else {
+        console.warn('No albums parsed from spreadsheet; using fallback list.');
         renderShowcase(FALLBACK_ALBUMS);
       }
     } catch (err) {
-      console.warn('Unable to fetch external URL, rendering fallback data:', err);
+      console.error('Error fetching or parsing spreadsheet data:', err);
       renderShowcase(FALLBACK_ALBUMS);
     }
   }
 
   /**
-   * Fetch and parse CSV/TSV from target URL
+   * Fetch and parse CSV from target URL
    */
   async function fetchAndParseAlbumList(url) {
     const response = await fetch(url, { cache: 'no-cache' });
@@ -102,10 +105,12 @@
   }
 
   /**
-   * Flexible CSV / TSV Parser
-   * Expects: Column 1 = Album Name, Column 2 = Artist Name, Column 3 = Image URL
+   * Robust CSV Parser
+   * Expects: Column 1 = Album Name | Column 2 = Artist Name | Column 3 = Image URL
    */
   function parseCSV(csvText) {
+    if (!csvText || typeof csvText !== 'string') return [];
+
     const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
     const parsedAlbums = [];
 
@@ -113,14 +118,13 @@
       const line = lines[i].trim();
       if (!line) continue;
 
-      // Determine delimiter (tab vs comma)
       const delimiter = line.includes('\t') ? '\t' : ',';
       const columns = splitCSVLine(line, delimiter);
 
       if (columns.length >= 3) {
-        const col1 = columns[0].trim();
-        const col2 = columns[1].trim();
-        const col3 = columns[2].trim();
+        const col1 = cleanField(columns[0]);
+        const col2 = cleanField(columns[1]);
+        const col3 = cleanField(columns[2]);
 
         // Skip header row if present
         if (i === 0 && (col1.toLowerCase().includes('album') || col2.toLowerCase().includes('artist'))) {
@@ -141,7 +145,20 @@
   }
 
   /**
-   * Parse a single CSV line taking quotes into account
+   * Cleans quotes and whitespace from a field value
+   */
+  function cleanField(val) {
+    if (!val) return '';
+    let cleaned = val.trim();
+    if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+      cleaned = cleaned.slice(1, -1).trim();
+    }
+    return cleaned;
+  }
+
+  /**
+   * Splits a CSV line properly respecting standard double-quote RFC-4180 rules.
+   * Note: Apostrophes (') are preserved as literal characters (e.g. "Guns N' Roses", "Don't").
    */
   function splitCSVLine(line, delimiter) {
     const result = [];
@@ -150,7 +167,9 @@
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      if (char === '"' || char === "'") {
+
+      if (char === '"') {
+        // Toggle quote state on standard CSV double-quote
         inQuotes = !inQuotes;
       } else if (char === delimiter && !inQuotes) {
         result.push(current);
@@ -189,15 +208,13 @@
   function getWeeklyAlbumAssignments(albumsList) {
     const now = new Date();
     const weekSeedStr = getWeekSeed(now);
-    
-    // Hash week seed string into a numeric seed
+
     let baseSeed = 0;
     for (let i = 0; i < weekSeedStr.length; i++) {
       baseSeed = (baseSeed << 5) - baseSeed + weekSeedStr.charCodeAt(i);
       baseSeed |= 0;
     }
 
-    // Shuffle album indices deterministically for this week
     const shuffledIndices = albumsList.map((_, idx) => idx);
     for (let i = shuffledIndices.length - 1; i > 0; i--) {
       const r = Math.floor(seededRandom(baseSeed + i) * (i + 1));
@@ -206,31 +223,25 @@
       shuffledIndices[r] = temp;
     }
 
-    // Map Monday to Friday
     const assignments = {};
     WEEKDAYS.forEach((day, idx) => {
       const albumIdx = shuffledIndices[idx % shuffledIndices.length];
       assignments[day.name] = albumsList[albumIdx];
     });
 
-    // Calculate upcoming day preview
     const currentDayIndex = now.getDay(); // 0 = Sun, 1 = Mon, ... 6 = Sat
     let upcomingDayName = 'Upcoming Day';
     let upcomingAlbum = null;
 
     if (currentDayIndex >= 1 && currentDayIndex <= 4) {
-      // Mon (1) -> Tue (2), Tue (2) -> Wed (3), Wed (3) -> Thu (4), Thu (4) -> Fri (5)
       const nextDayObj = WEEKDAYS[currentDayIndex];
       upcomingDayName = `${nextDayObj.name} Preview`;
       upcomingAlbum = assignments[nextDayObj.name];
     } else if (currentDayIndex === 5) {
-      // Fri (5) -> Saturday Sneak Peek
       upcomingDayName = 'Saturday Sneak Peek';
-      const satSeed = baseSeed + 99;
       const satIdx = shuffledIndices[5 % shuffledIndices.length] || 0;
       upcomingAlbum = albumsList[satIdx];
     } else {
-      // Sat (6) or Sun (0) -> Next Monday Preview
       upcomingDayName = 'Monday Sneak Peek';
       upcomingAlbum = assignments['Monday'];
     }
@@ -251,17 +262,25 @@
     const container = document.getElementById('singleAlbumContainer');
     if (!container) return;
 
+    if (!albums || albums.length === 0) {
+      container.innerHTML = `
+        <div class="error-state">
+          <p>No albums available to display.</p>
+        </div>
+      `;
+      return;
+    }
+
     const { weekdayAlbums, upcoming } = getWeeklyAlbumAssignments(albums);
     const now = new Date();
     const todayIndex = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
 
-    // Match today's day object (fallback to Monday on weekends)
     let currentDayObj = WEEKDAYS.find(d => d.index === todayIndex);
     if (!currentDayObj) {
-      currentDayObj = WEEKDAYS[0]; // Default to Monday
+      currentDayObj = WEEKDAYS[0]; // Default to Monday on weekends
     }
 
-    const todayAlbum = weekdayAlbums[currentDayObj.name];
+    const todayAlbum = weekdayAlbums[currentDayObj.name] || albums[0];
 
     container.innerHTML = '';
 
@@ -270,7 +289,7 @@
 
     card.innerHTML = `
       <div class="card-header">
-        <span class="day-name">${currentDayObj.name} • ALBUM OF THE DAY</span>
+        <span class="day-name">${escapeHtml(currentDayObj.name)} • ALBUM OF THE DAY</span>
         <span class="today-badge">TODAY</span>
       </div>
 
